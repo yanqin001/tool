@@ -197,9 +197,10 @@ func (svc *versionSvc) getFixedMainVersion(fixVersion string) string {
 	if strings.Contains(fixVersion, ":") {
 		return strings.TrimSpace(strings.Split(fixVersion, ":")[0])
 	}
-	if !strings.Contains(fixVersion, ".") {
-		return fixVersion
-	}
+
 	parts := strings.Split(fixVersion, ".")
-	return strings.Split(strings.Join(parts[:len(parts)-1], "."), "-")[0] //6.12-rc1 -> 6.12
+	if len(parts) < 3 {
+		return strings.Split(fixVersion, "-")[0] //6.12-rc1 -> 6.12
+	}
+	return strings.Split(strings.Join(parts[:len(parts)-1], "."), "-")[0]
 }
