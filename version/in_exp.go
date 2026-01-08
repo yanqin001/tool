@@ -201,5 +201,5 @@ func (svc *versionSvc) getFixedMainVersion(fixVersion string) string {
 		return fixVersion
 	}
 	parts := strings.Split(fixVersion, ".")
-	return strings.Join(parts[:len(parts)-1], ".")
+	return strings.Split(strings.Join(parts[:len(parts)-1], "."), "-")[0] //6.12-rc1 -> 6.12
 }
