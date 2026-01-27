@@ -17,7 +17,7 @@ func (svc *versionSvc) GetMaxVersion(versions []string) (string, error) {
 			return "", err
 		}
 
-		result, err := svc.Compare(maxVersion, version, false)
+		result, err := svc.CompareVersion(maxVersion, version, false)
 		if err != nil {
 			return "", err
 		}
@@ -45,7 +45,7 @@ func (svc *versionSvc) GetMinVersion(versions []string) (string, error) {
 			return "", err
 		}
 
-		result, err := svc.Compare(minVersion, version, false)
+		result, err := svc.CompareVersion(minVersion, version, false)
 		if err != nil {
 			return "", err
 		}

@@ -30,7 +30,7 @@ func (svc *versionSvc) getCompareVersion(v, tp string) (compareVersion, error) {
 		return svc.GetOSVersion(v)
 	}
 
-	return svc.GetVersion(v)
+	return svc.getNormalCompareVersion(v)
 }
 
 func (svc *versionSvc) FormatCharacter(v string) string {
@@ -94,7 +94,7 @@ func (svc *versionSvc) IsCommitVersion(v string) bool {
 	return true
 }
 
-func (svc *versionSvc) GetVersion(v string) (compareVersion, error) {
+func (svc *versionSvc) getNormalCompareVersion(v string) (compareVersion, error) {
 	regexpString := `((\d+(\.\d+)+)([a-zA-Z]*)[\.\-]*([a-zA-Z]*|[\.\d]*(?<!\.))[\.\-]*([\d\.]*)(?<!\.)\.*([\.\-a-zA-Z0-9]*))`
 	reg := regexp2.MustCompile(regexpString, 0)
 	match, err := reg.FindStringMatch(v)

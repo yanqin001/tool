@@ -5,9 +5,21 @@ import (
 	"strings"
 )
 
+func (svc *versionSvc) Compare(v1, v2 string) (int, error) {
+	version1, err := svc.GetCompareVersion(v1, "")
+	if err != nil {
+		return 0, err
+	}
+	version2, err := svc.GetCompareVersion(v2, "")
+	if err != nil {
+		return 0, err
+	}
+	return svc.CompareVersion(version1, version2, false)
+}
+
 // v1为指定版本, v2为版本表达式版本
 // 0 < , 1 = , 2 >， 7.0.3.1 > 7.0.3;0.15.1 > 0.15; 5 不满足
-func (svc *versionSvc) Compare(v1, v2 compareVersion, matchMain bool) (int, error) {
+func (svc *versionSvc) CompareVersion(v1, v2 compareVersion, matchMain bool) (int, error) {
 	if v1.Original == v2.Original {
 		return 1, nil
 	}

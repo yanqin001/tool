@@ -146,7 +146,7 @@ func (svc *versionSvc) CompareExp(ev expressionVersion, sv compareVersion, ve Ve
 	if ev.CompareVersion.Main == "" {
 		return true, nil
 	}
-	result, err = svc.Compare(sv, ev.CompareVersion, ve.MatchMain)
+	result, err = svc.CompareVersion(sv, ev.CompareVersion, ve.MatchMain)
 
 	if err != nil {
 		return inExpression, err
