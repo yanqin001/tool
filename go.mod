@@ -4,6 +4,7 @@ go 1.25.5
 
 require (
 	github.com/dlclark/regexp2 v1.11.5
+	github.com/kaptinlin/jsonrepair v0.2.7
 	github.com/stretchr/testify v1.11.1
 )
 
