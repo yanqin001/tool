@@ -67,3 +67,8 @@ func Test_versionSvc_InExp(t *testing.T) {
 		assert.Equal(t, ts.expected, result)
 	}
 }
+
+func Test_GetCompareVersion(t *testing.T) {
+	svc := versionSvc{}
+	svc.getCompareVersion("VER-2-2-0", "")
+}

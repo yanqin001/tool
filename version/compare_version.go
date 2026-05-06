@@ -103,6 +103,27 @@ func (svc *versionSvc) getNormalCompareVersion(v string) (compareVersion, error)
 	}
 
 	if match == nil {
+		hyphenRegexp := `(\d+(\-\d+)+)(\-([a-zA-Z]+)(\d*))?`
+		hyphenReg := regexp2.MustCompile(hyphenRegexp, 0)
+		hyphenMatch, herr := hyphenReg.FindStringMatch(v)
+		if herr == nil && hyphenMatch != nil {
+			hGroups := hyphenMatch.Groups()
+			mainVersion := strings.ReplaceAll(hGroups[1].Captures[0].String(), "-", ".")
+			pre := ""
+			additional := ""
+			if len(hGroups) > 4 && len(hGroups[4].Captures) > 0 {
+				pre = hGroups[4].Captures[0].String()
+			}
+			if len(hGroups) > 5 && len(hGroups[5].Captures) > 0 {
+				additional = hGroups[5].Captures[0].String()
+			}
+			return compareVersion{
+				Main:       mainVersion,
+				Pre:        pre,
+				Additional: additional,
+				Type:       0,
+			}, nil
+		}
 		return svc.GetStringVersion(v), nil
 	}
 	groups := match.Groups()
