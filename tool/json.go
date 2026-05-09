@@ -3,8 +3,9 @@ package tool
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/kaptinlin/jsonrepair"
 	"strings"
+
+	"github.com/kaptinlin/jsonrepair"
 )
 
 // GetJsonText JSON 提取函数，从字符串中提取第一个有效的 JSON
@@ -22,7 +23,14 @@ func GetJsonText(text string) (string, error) {
 		return extracted, nil
 	}
 
-	// 方法3：尝试修复
+	// 方法3：对提取出的片段优先尝试修复（适用于 JSON 被截断或轻微损坏的场景）
+	if extracted != "" {
+		if repaired, repairErr := jsonrepair.JSONRepair(extracted); repairErr == nil && json.Valid([]byte(repaired)) {
+			return repaired, nil
+		}
+	}
+
+	// 方法4：兜底，尝试修复整段文本
 	result, err := jsonrepair.JSONRepair(text)
 	if err != nil {
 		return "", err
@@ -101,6 +109,17 @@ func extractJSONByBracketMatching(text string) (string, error) {
 		}
 	}
 
-	// 没有找到完整匹配，返回部分结果
-	return text[start:], fmt.Errorf("未找到完整的 JSON 匹配")
+	// 没有找到完整匹配，根据栈深度补齐结束字符，返回尽力匹配的结果交由上层修复
+	partial := text[start:]
+	if stack > 0 {
+		// 如果当前仍处于字符串中，先补一个引号闭合字符串
+		if inString {
+			partial += "\""
+		}
+		// 按栈深度补齐剩余的结束符
+		for i := 0; i < stack; i++ {
+			partial += string(endChar)
+		}
+	}
+	return partial, fmt.Errorf("未找到完整的 JSON 匹配")
 }
