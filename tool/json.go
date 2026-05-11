@@ -10,10 +10,27 @@ import (
 
 // GetJsonText JSON 提取函数，从字符串中提取第一个有效的 JSON
 func GetJsonText(text string) (string, error) {
+	return getJsonTextWithDepth(text, 0)
+}
+
+// getJsonTextWithDepth 带递归深度保护的 JSON 提取实现，防止多层 JSON-encode 导致无限递归
+func getJsonTextWithDepth(text string, depth int) (string, error) {
 	text = strings.TrimSpace(text)
 
-	// 方法1：尝试完整字符串验证
-	if json.Valid([]byte(text)) {
+	// 方法0：若整体被双引号包裹且是合法的 JSON 字符串值（常见于 LLM 响应被二次 JSON-encode 的场景），
+	// 先解码得到原始文本再递归提取；限制递归深度避免极端输入造成栈溢出
+	if depth < 3 && len(text) >= 2 && text[0] == '"' && text[len(text)-1] == '"' {
+		var inner string
+		if err := json.Unmarshal([]byte(text), &inner); err == nil && strings.ContainsAny(inner, "{[") {
+			if result, subErr := getJsonTextWithDepth(inner, depth+1); subErr == nil {
+				return result, nil
+			}
+		}
+	}
+
+	// 方法1：尝试完整字符串验证（仅当顶层是对象或数组时才直接返回，
+	// 避免把“被引号包裹的字符串”误判为目标 JSON）
+	if json.Valid([]byte(text)) && len(text) > 0 && (text[0] == '{' || text[0] == '[') {
 		return text, nil
 	}
 

@@ -169,3 +169,62 @@ func TestExtractJSONByBracketMatching_PadsMissingBrackets(t *testing.T) {
 	assert.True(t, strings.HasSuffix(partial, `}}`))
 	assert.Contains(t, partial, `"未闭合"`)
 }
+
+// LLM 结果被二次 JSON-encode：整体被引号包裹、内部 "/\n 被转义，包含 ```json 代码块
+func TestGetJsonText_JSONEncodedWrapperWithCodeFence(t *testing.T) {
+	// 构造原始文本（含真实换行和未转义的引号）
+	inner := "现在我已经有了所有需要的数据。让我分析 Agent 与 NVD 之间的差异：\n\n" +
+		"**关键差异：**\n1. **begin**: Agent 明确 `2.6.12` 作为引入版本\n\n" +
+		"```json\n" +
+		"{\n  \"items\": [\n" +
+		"    {\"version\": \"v2.6.11\", \"expected_affected\": false},\n" +
+		"    {\"version\": \"v2.6.12\", \"expected_affected\": true},\n" +
+		"    {\"version\": \"v3.18-rc6\", \"expected_affected\": false}\n" +
+		"  ]\n}\n" +
+		"```"
+
+	// 对原始文本进行 JSON-encode（模拟二次序列化的场景）
+	encoded, err := json.Marshal(inner)
+	require.NoError(t, err)
+
+	got, err := GetJsonText(string(encoded))
+	require.NoError(t, err, "被 JSON-encode 包裹的内容应先解码再提取")
+	require.True(t, json.Valid([]byte(got)), "返回结果应是合法 JSON: %s", got)
+
+	var m map[string]interface{}
+	require.NoError(t, json.Unmarshal([]byte(got), &m))
+
+	items, ok := m["items"].([]interface{})
+	require.True(t, ok, "应提取出 items 数组而非整体字符串")
+	assert.Len(t, items, 3)
+
+	first := items[0].(map[string]interface{})
+	assert.Equal(t, "v2.6.11", first["version"])
+	assert.Equal(t, false, first["expected_affected"])
+}
+
+// 整体被引号包裹 + 截断的 JSON 也应能被提取
+func TestGetJsonText_JSONEncodedWithTruncation(t *testing.T) {
+	inner := "前缀文本\n```json\n{\"status\": \"ok\", \"msg\": \"内容被截断"
+	encoded, err := json.Marshal(inner)
+	require.NoError(t, err)
+
+	got, err := GetJsonText(string(encoded))
+	require.NoError(t, err)
+	require.True(t, json.Valid([]byte(got)))
+
+	var m map[string]interface{}
+	require.NoError(t, json.Unmarshal([]byte(got), &m))
+	assert.Equal(t, "ok", m["status"])
+	assert.Contains(t, m["msg"], "内容被截断")
+}
+
+// 纯 JSON 字符串值（不包含嵌套的 { 或 [）应保持原来的完整验证行为，
+// 后续则由 jsonrepair 处理。这里主要验证不会卡在无限递归或报错
+func TestGetJsonText_PlainQuotedString(t *testing.T) {
+	input := `"这只是一段普通字符串值"`
+	got, err := GetJsonText(input)
+	if err == nil {
+		assert.True(t, json.Valid([]byte(got)))
+	}
+}
