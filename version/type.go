@@ -6,6 +6,7 @@ type VersionSvc interface {
 	GetMinVersion(versions []string) (string, error)
 	Compare(v1, v2 string) (int, error)
 	Sort(versions []string) ([]string, error)
+	GetClosestVersion(version string, versions []string) (string, error)
 }
 
 type versionSvc struct{}
