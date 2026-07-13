@@ -26,7 +26,10 @@ func (svc *versionSvc) CompareVersion(v1, v2 compareVersion, matchMain bool) (in
 
 	// 字符串版本只匹配是否相等（上面一步已匹配）
 	if v1.Type == 2 || v2.Type == 2 {
-		return 5, nil
+		if len(v1.Main) > 2 || len(v2.Main) > 2 {
+			return 5, nil
+		}
+		return svc.StringCompare(v1.Main, v2.Main), nil
 	}
 
 	result, err := svc.CompareStringVersion(v1.Main, v2.Main)

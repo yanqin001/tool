@@ -142,6 +142,77 @@ func TestGetJsonText_BracesInsideString(t *testing.T) {
 	assert.Equal(t, true, m["ok"])
 }
 
+// 前面出现代码块里的花括号时，应跳过伪 JSON，继续提取后面的最终 JSON
+func TestGetJsonText_SkipsCodeBracesBeforeFinalJSON(t *testing.T) {
+	input := "分析过程：\n```c\nif (x) { return 1; }\n```\n最终结果：" +
+		`{"status":"ok","items":[{"id":1,"name":"alpha"}]}`
+
+	got, err := GetJsonText(input)
+	require.NoError(t, err)
+	require.True(t, json.Valid([]byte(got)), "返回结果应是合法 JSON: %s", got)
+
+	var m map[string]interface{}
+	require.NoError(t, json.Unmarshal([]byte(got), &m))
+	assert.Equal(t, "ok", m["status"])
+}
+
+// 普通说明中的方括号不应被 jsonrepair 抢先修成 JSON 数组
+func TestGetJsonText_SkipsPlainBracketsBeforeFinalJSON(t *testing.T) {
+	input := "候选字段 [not json] 仅用于说明，最终结果：" + `{"ok":true,"count":2}`
+
+	got, err := GetJsonText(input)
+	require.NoError(t, err)
+	require.True(t, json.Valid([]byte(got)), "返回结果应是合法 JSON: %s", got)
+
+	var m map[string]interface{}
+	require.NoError(t, json.Unmarshal([]byte(got), &m))
+	assert.Equal(t, true, m["ok"])
+}
+
+// 明确标记为 json 的代码块支持根数组，兼容 LLM 直接返回列表结果的场景
+func TestGetJsonText_JSONCodeBlockRootArray(t *testing.T) {
+	input := "最终结果：\n```json\n" +
+		`[{"type":"result","items":[{"id":1,"name":"alpha"}]}]` +
+		"\n```"
+
+	got, err := GetJsonText(input)
+	require.NoError(t, err)
+	require.True(t, json.Valid([]byte(got)), "返回结果应是合法 JSON: %s", got)
+
+	var arr []map[string]interface{}
+	require.NoError(t, json.Unmarshal([]byte(got), &arr))
+	require.Len(t, arr, 1)
+	assert.Equal(t, "result", arr[0]["type"])
+}
+
+// 混合嵌套对象和数组时，括号匹配必须按真实配对关系出栈
+func TestExtractJSONByBracketMatching_MixedObjectArray(t *testing.T) {
+	input := `前缀 {"items":[{"id":1,"tags":["a","b"]}],"ok":true} 后缀`
+
+	got, err := extractJSONByBracketMatching(input)
+	require.NoError(t, err)
+	require.True(t, json.Valid([]byte(got)), "返回结果应是合法 JSON: %s", got)
+
+	var m map[string]interface{}
+	require.NoError(t, json.Unmarshal([]byte(got), &m))
+	assert.Equal(t, true, m["ok"])
+}
+
+// 截断响应中同时存在对象和数组时，应补齐正确的混合括号
+func TestGetJsonText_TruncatedMixedObjectArray(t *testing.T) {
+	input := `结果：{"items":[{"msg":"内容被截断`
+
+	got, err := GetJsonText(input)
+	require.NoError(t, err)
+	require.True(t, json.Valid([]byte(got)), "返回结果应是合法 JSON: %s", got)
+
+	var m map[string]interface{}
+	require.NoError(t, json.Unmarshal([]byte(got), &m))
+	items, ok := m["items"].([]interface{})
+	require.True(t, ok)
+	require.Len(t, items, 1)
+}
+
 // 没有任何 JSON 起始字符时，会由 jsonrepair 兜底为合法 JSON（通常是一个字符串）
 func TestGetJsonText_NoJSONStartChar(t *testing.T) {
 	input := "这只是一段普通文本，没有任何 JSON 结构。"
